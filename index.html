@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+
+        table {
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+
+        td {
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        input {
+            width: 100%;
+            height: 100%;
+            font-size: 14px;
+            text-align: center;
+            border: none;
+            outline: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #message {
+            color: green;
+        }
+
+        #error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+    <table id="sudoku-board"></table>
+    <div id="message"></div>
+    <div id="error"></div>
+    <button onclick="solveSudoku()">Решить</button>
+    <button onclick="newGame()">Новая игра</button>
+
+    <script>
+        let sudokuBoard;
+        let initialBoard;
+
+        function newGame() {
+            initialBoard = generateSudokuBoard();
+            sudokuBoard = JSON.parse(JSON.stringify(initialBoard)); 
+            renderBoard(sudokuBoard);
+            clearMessages();
+        }
+
+        function clearMessages() {
+            document.getElementById('message').textContent = '';
+            document.getElementById('error').textContent = '';
+        }
+
+        function generateSudokuBoard() {
+            const base = [
+                [5, 3, 0, 0, 7, 0, 0, 0, 0],
+                [6, 0, 0, 1, 9, 5, 0, 0, 0],
+                [0, 9, 8, 0, 0, 0, 0, 6, 0],
+                [8, 0, 0, 0, 6, 0, 0, 0, 3],
+                [4, 0, 0, 8, 0, 3, 0, 0, 1],
+                [7, 0, 0, 0, 2, 0, 0, 0, 6],
+                [0, 6, 0, 0, 0, 0, 2, 8, 0],
+                [0, 0, 0, 4, 1, 9, 0, 0, 5],
+                [0, 0, 0, 0, 8, 0, 0, 7, 9]
+            ];
+
+            return shuffleBoard(base);
+        }
+
+        function shuffleBoard(board) {
+            const shuffledBoard = JSON.parse(JSON.stringify(board));
+            for (let i = 0; i < 5; i++) {
+                const block = Math.floor(Math.random() * 3) * 3;
+                const row1 = block + Math.floor(Math.random() * 3);
+                const row2 = block + Math.floor(Math.random() * 3);
+                [shuffledBoard[row1], shuffledBoard[row2]] = [shuffledBoard[row2], shuffledBoard[row1]];
+
+                const col1 = block + Math.floor(Math.random() * 3);
+                const col2 = block + Math.floor(Math.random() * 3);
+                for (let j = 0; j < 9; j++) {
+                    [shuffledBoard[j][col1], shuffledBoard[j][col2]] = [shuffledBoard[j][col2], shuffledBoard[j][col1]];
+                }
+            }
+            return shuffledBoard;
+        }
+
+        function solve(board) {
+            const emptyCell = findEmptyCell(board);
+            if (!emptyCell) {
+                return true; 
+            }
+
+            const [row, col] = emptyCell;
+
+            for (let num = 1; num <= 9; num++) {
+                if (isValidMove(board, row, col, num)) {
+                    board[row][col] = num;
+
+                    if (solve(board)) {
+                        return true; 
+                    }
+
+                    board[row][col] = 0; 
+                }
+            }
+
+            return false;
+        }
+
+        function validateInput(event) {
+            const input = event.target;
+            const row = parseInt(input.dataset.row, 10);
+            const col = parseInt(input.dataset.col, 10);
+            const value = parseInt(input.value, 10);
+
+            if (isNaN(value) || value < 1 || value > 9) {
+                input.value = '';
+                return;
+            }
+
+            if (!isValidMove(sudokuBoard, row, col, value)) {
+                input.value = '';
+                document.getElementById('error').textContent = 'Некорректное значение!';
+                setTimeout(clearMessages, 2000);
+            } else {
+                sudokuBoard[row][col] = value;
+                document.getElementById('error').textContent = '';
+            }
+        }
+
+        function isValidMove(board, row, col, num) {
+            for (let i = 0; i < 9; i++) {
+                if (board[row][i] === num || board[i][col] === num) {
+                    return false;
+                }
+            }
+
+            const startRow = Math.floor(row / 3) * 3;
+            const startCol = Math.floor(col / 3) * 3;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (board[startRow + i][startCol + j] === num) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        function renderBoard(board) {
+            const table = document.getElementById('sudoku-board');
+            table.innerHTML = '';
+
+            for (let i = 0; i < 9; i++) {
+                const row = document.createElement('tr');
+                for (let j = 0; j < 9; j++) {
+                    const cell = document.createElement('td');
+                    const value = board[i][j];
+                    if (value !== 0) {
+                        cell.textContent = value;
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.dataset.row = i;
+                        input.dataset.col = j;
+                        input.addEventListener('input', validateInput);
+                        cell.appendChild(input);
+                    }
+                    row.appendChild(cell);
+                }
+                table.appendChild(row);
+            }
+        }
+
+        function findEmptyCell(board) {
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    if (board[i][j] === 0) {
+                        return [i, j];
+                    }
+                }
+            }
+            return null; 
+        }
+
+        function solveSudoku() {
+            clearMessages();
+            if (!solve(sudokuBoard)) {
+                document.getElementById('error').textContent = 'Нет решения для данной доски!';
+            } else {
+                renderBoard(sudokuBoard);
+                document.getElementById('message').textContent = 'Готово! Доска решена.';
+            }
+        }
+
+        newGame();
+    </script>
+
+</body>
+
+</html>
